@@ -441,9 +441,94 @@ kwargs = {"a": 1, "b": 2, "c": 3}
 func(**kwargs)  # spreads dict
 ```
 
+### *args and **kwargs - Dynamic Parameters
+
+**JS**
+```js
+// Rest parameters (positional)
+function sum(...numbers) {
+  return numbers.reduce((a, b) => a + b, 0);
+}
+sum(1, 2, 3, 4);  // 10
+
+// No direct kwargs equivalent - use options object
+function createUser(name, options = {}) {
+  console.log(name, options.age, options.email);
+}
+createUser('Alice', {age: 25, email: 'alice@example.com'});
+```
+
+**Python**
+```python
+# *args - collects positional arguments into tuple
+def sum_all(*args):
+    return sum(args)
+
+sum_all(1, 2, 3, 4)  # 10
+
+# **kwargs - collects keyword arguments into dict
+def greet(**kwargs):
+    print(kwargs)  # {'name': 'Alice', 'age': 25}
+    print(kwargs.get('name'))
+
+greet(name='Alice', age=25)
+
+# Combining both
+def flexible(required, *args, **kwargs):
+    print(f"Required: {required}")
+    print(f"Positional: {args}")
+    print(f"Keyword: {kwargs}")
+
+flexible('data', 1, 2, 3, name='Alice', age=25)
+# Required: data
+# Positional: (1, 2, 3)
+# Keyword: {'name': 'Alice', 'age': 25}
+```
+
+**Real-world examples:**
+
+```python
+# Dynamic SQL updates
+def update_user(user_id, **fields):
+    """Update user with any fields provided"""
+    set_clauses = [f"{key} = %s" for key in fields.keys()]
+    values = list(fields.values())
+    sql = f"UPDATE users SET {', '.join(set_clauses)} WHERE id = %s"
+    values.append(user_id)
+    return sql, values
+
+# Flexible - update any fields
+update_user(123, email='new@example.com')
+update_user(123, email='new@example.com', name='Alice', active=True)
+
+# API wrapper with flexible query params
+def fetch_data(endpoint, **params):
+    """All kwargs become query parameters"""
+    response = requests.get(f"{base_url}/{endpoint}", params=params)
+    return response.json()
+
+fetch_data('users', status='active', role='admin', limit=10)
+# GET /users?status=active&role=admin&limit=10
+
+# Logger with arbitrary context
+def log_event(message, level='INFO', **context):
+    ctx = ', '.join(f"{k}={v}" for k, v in context.items())
+    print(f"[{level}] {message} | {ctx}")
+
+log_event("User login", user_id=123, ip='192.168.1.1')
+# [INFO] User login | user_id=123, ip=192.168.1.1
+```
+
+**Key points:**
+- `*args` collects extra positional arguments into a **tuple**
+- `**kwargs` collects extra keyword arguments into a **dict**
+- Use `**kwargs` to unpack dict as keyword arguments when calling functions
+- Common pattern: accept flexible parameters without defining them all upfront
+
 ### Slicing
 
 **JS**
+
 ```js
 // Array slicing
 arr.slice(1, 4);      // elements 1-3
@@ -591,8 +676,330 @@ gt10 = reduce(make_threshold_reducer(10), nums, [])
 print(gt10)  # [15]
 ```
 
-✅ Use lambdas for short, pure expressions.  
+✅ Use lambdas for short, pure expressions.
 ✅ Use named `def` reducers for complex or reusable logic.
+
+---
+
+## 🎯 Type Hints (TypeScript → Python)
+
+Python's type hints are similar to TypeScript but purely for documentation and static analysis (not runtime enforcement).
+
+### Basic Types
+
+**TypeScript**
+```typescript
+let name: string = "Alice";
+let age: number = 25;
+let active: boolean = true;
+let data: any = "whatever";
+```
+
+**Python**
+```python
+name: str = "Alice"
+age: int = 25
+active: bool = True
+data: any = "whatever"  # or use Any from typing
+```
+
+### Function Signatures
+
+**TypeScript**
+```typescript
+function greet(name: string, age: number): string {
+  return `${name} is ${age}`;
+}
+
+const add = (a: number, b: number): number => a + b;
+```
+
+**Python**
+```python
+def greet(name: str, age: int) -> str:
+    return f"{name} is {age}"
+
+add = lambda a: int, b: int: a + b  # lambdas rarely typed
+```
+
+### Union Types
+
+**TypeScript**
+```typescript
+let id: string | number;
+id = 123;
+id = "abc";
+
+function process(value: string | null): void {
+  if (value !== null) {
+    console.log(value.toUpperCase());
+  }
+}
+```
+
+**Python**
+```python
+from typing import Union, Optional
+
+id: Union[str, int]
+id = 123
+id = "abc"
+
+# Optional[T] is shorthand for Union[T, None]
+def process(value: Optional[str]) -> None:
+    if value is not None:
+        print(value.upper())
+
+# Python 3.10+ - use | operator
+def process(value: str | None) -> None:
+    pass
+```
+
+### Generic Types (Collections)
+
+**TypeScript**
+```typescript
+let names: string[] = ["Alice", "Bob"];
+let scores: Array<number> = [95, 87];
+let pairs: [string, number][] = [["Alice", 95], ["Bob", 87]];
+
+let userMap: Map<string, number> = new Map();
+let uniqueIds: Set<number> = new Set([1, 2, 3]);
+```
+
+**Python**
+```python
+from typing import List, Dict, Set, Tuple
+
+names: List[str] = ["Alice", "Bob"]
+scores: list[int] = [95, 87]  # Python 3.9+ lowercase works
+pairs: List[Tuple[str, int]] = [("Alice", 95), ("Bob", 87)]
+
+user_map: Dict[str, int] = {}
+unique_ids: Set[int] = {1, 2, 3}
+```
+
+### Literal Types & Enums
+
+**TypeScript**
+```typescript
+type Status = "pending" | "active" | "done";
+let status: Status = "active";
+
+enum Color {
+  Red = "RED",
+  Green = "GREEN",
+  Blue = "BLUE"
+}
+```
+
+**Python**
+```python
+from typing import Literal
+from enum import Enum
+
+status: Literal["pending", "active", "done"] = "active"
+
+class Color(Enum):
+    RED = "RED"
+    GREEN = "GREEN"
+    BLUE = "BLUE"
+
+# Using it
+color: Color = Color.RED
+```
+
+### TypedDict (Interface for Dicts)
+
+**TypeScript**
+```typescript
+interface User {
+  id: number;
+  name: string;
+  email?: string;  // optional
+}
+
+const user: User = {
+  id: 1,
+  name: "Alice"
+};
+```
+
+**Python**
+```python
+from typing import TypedDict, Optional
+
+class User(TypedDict):
+    id: int
+    name: str
+    email: Optional[str]  # optional field
+
+# Or with total=False for all optional
+class UserPartial(TypedDict, total=False):
+    id: int
+    name: str
+    email: str
+
+user: User = {
+    "id": 1,
+    "name": "Alice"
+}
+```
+
+### Generic Functions
+
+**TypeScript**
+```typescript
+function identity<T>(value: T): T {
+  return value;
+}
+
+function first<T>(arr: T[]): T | undefined {
+  return arr[0];
+}
+
+const num = identity<number>(42);
+const str = identity("hello");
+```
+
+**Python**
+```python
+from typing import TypeVar, List, Optional
+
+T = TypeVar('T')
+
+def identity(value: T) -> T:
+    return value
+
+def first(arr: List[T]) -> Optional[T]:
+    return arr[0] if arr else None
+
+num = identity(42)  # Type inference works
+str_val = identity("hello")
+```
+
+### Generic Classes
+
+**TypeScript**
+```typescript
+class Box<T> {
+  constructor(private value: T) {}
+
+  getValue(): T {
+    return this.value;
+  }
+}
+
+const numBox = new Box<number>(42);
+const strBox = new Box("hello");
+```
+
+**Python**
+```python
+from typing import TypeVar, Generic
+
+T = TypeVar('T')
+
+class Box(Generic[T]):
+    def __init__(self, value: T):
+        self.value = value
+
+    def get_value(self) -> T:
+        return self.value
+
+num_box: Box[int] = Box(42)
+str_box: Box[str] = Box("hello")
+```
+
+### Callable Types (Function Types)
+
+**TypeScript**
+```typescript
+type Handler = (event: string) => void;
+type Mapper = (x: number) => string;
+
+function register(callback: Handler): void {
+  callback("event");
+}
+```
+
+**Python**
+```python
+from typing import Callable
+
+Handler = Callable[[str], None]
+Mapper = Callable[[int], str]
+
+def register(callback: Handler) -> None:
+    callback("event")
+
+# Or inline
+def process(func: Callable[[int, int], int]) -> int:
+    return func(1, 2)
+```
+
+### Advanced: Protocol (Structural Typing)
+
+**TypeScript**
+```typescript
+interface Drawable {
+  draw(): void;
+}
+
+function render(obj: Drawable) {
+  obj.draw();
+}
+
+// Any object with draw() works
+render({draw: () => console.log("drawing")});
+```
+
+**Python**
+```python
+from typing import Protocol
+
+class Drawable(Protocol):
+    def draw(self) -> None:
+        ...
+
+def render(obj: Drawable) -> None:
+    obj.draw()
+
+# Any object with draw() method works (duck typing)
+class Circle:
+    def draw(self) -> None:
+        print("drawing circle")
+
+render(Circle())  # Type checker approves
+```
+
+### Type Checking with mypy
+
+```bash
+# Install type checker
+pip install mypy
+
+# Check your code
+mypy your_file.py
+```
+
+**Key Differences:**
+- **TypeScript**: Types enforced at compile time, stripped at runtime
+- **Python**: Types are hints only, not enforced at runtime (unless using Pydantic/dataclasses)
+- **Static checker**: Use `mypy`, `pyright`, or `pytype` to validate types
+- **Runtime validation**: Use Pydantic for runtime type checking
+
+```python
+# Type hints don't prevent this at runtime!
+def add(a: int, b: int) -> int:
+    return a + b
+
+add("hello", "world")  # No error at runtime! Returns "helloworld"
+
+# Use mypy to catch it:
+# $ mypy script.py
+# error: Argument 1 to "add" has incompatible type "str"; expected "int"
+```
 
 ---
 
@@ -636,16 +1043,16 @@ class Dog(Animal):
   ```
 
 ### Common Dunders
-| Method | Trigger | JS Equivalent |
-|--------|----------|---------------|
-| `__init__` | constructor | `constructor()` |
-| `__str__` | `str(obj)` / `print()` | `toString()` |
-| `__repr__` | REPL debug repr | `JSON.stringify(obj)` |
-| `__len__` | `len(obj)` | `.length` |
-| `__getitem__` | `obj[key]` | `obj[key]` |
-| `__iter__` / `__next__` | iteration | `[Symbol.iterator]` |
-| `__eq__` / `__lt__` | comparisons | `==`, `<` |
-| `__enter__` / `__exit__` | context mgr | try/finally cleanup |
+| Method                   | Trigger                | JS Equivalent         |
+|--------------------------|------------------------|-----------------------|
+| `__init__`               | constructor            | `constructor()`       |
+| `__str__`                | `str(obj)` / `print()` | `toString()`          |
+| `__repr__`               | REPL debug repr        | `JSON.stringify(obj)` |
+| `__len__`                | `len(obj)`             | `.length`             |
+| `__getitem__`            | `obj[key]`             | `obj[key]`            |
+| `__iter__` / `__next__`  | iteration              | `[Symbol.iterator]`   |
+| `__eq__` / `__lt__`      | comparisons            | `==`, `<`             |
+| `__enter__` / `__exit__` | context mgr            | try/finally cleanup   |
 
 ---
 
