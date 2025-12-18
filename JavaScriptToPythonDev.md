@@ -1040,7 +1040,52 @@ class Dog(Animal):
 
       @classmethod
       def identity(cls): return cls()
+
+      @property
+      def computed(self):
+          return self.value * 2
   ```
+
+### Dataclasses - Less Boilerplate
+
+**JS**
+```js
+class User {
+  constructor(id, name, email = null) {
+    this.id = id;
+    this.name = name;
+    this.email = email;
+  }
+}
+```
+
+**Python**
+```python
+from dataclasses import dataclass
+
+@dataclass
+class User:
+    id: int
+    name: str
+    email: str = None
+
+    # Auto-generates __init__, __repr__, __eq__
+
+user = User(1, "Alice")
+print(user)  # User(id=1, name='Alice', email=None)
+
+# With post-init processing
+@dataclass
+class Product:
+    name: str
+    price: float
+    tax_rate: float = 0.1
+    total: float = None
+
+    def __post_init__(self):
+        if self.total is None:
+            self.total = self.price * (1 + self.tax_rate)
+```
 
 ### Common Dunders
 | Method                   | Trigger                | JS Equivalent         |
@@ -1237,6 +1282,488 @@ from file_a import func_a
 def func_a():
     from file_b import func_b
     func_b()
+```
+
+---
+
+## 🎁 Context Managers (`with` statements)
+
+**JS** (no direct equivalent)
+```js
+// Manual cleanup
+const file = fs.openSync('data.txt');
+try {
+  const data = fs.readSync(file);
+  process(data);
+} finally {
+  fs.closeSync(file);  // Must remember to close
+}
+
+// Or with callbacks
+fs.readFile('data.txt', (err, data) => {
+  if (err) throw err;
+  process(data);
+});
+```
+
+**Python**
+```python
+# Automatic cleanup with context manager
+with open('data.txt') as f:
+    data = f.read()
+    process(data)
+# File automatically closed, even if error occurs
+
+# Multiple resources
+with open('input.txt') as fin, open('output.txt', 'w') as fout:
+    fout.write(fin.read())
+
+# Database connections
+with db.get_connection() as conn:
+    conn.execute(query)
+# Auto-commits and closes
+
+# Locks
+from threading import Lock
+lock = Lock()
+
+with lock:
+    # Thread-safe operation
+    shared_resource.modify()
+# Lock automatically released
+```
+
+### Creating Custom Context Managers
+
+**Decorator approach:**
+```python
+from contextlib import contextmanager
+import time
+
+@contextmanager
+def timer(name):
+    start = time.time()
+    print(f"{name} starting...")
+    yield  # Code block runs here
+    elapsed = time.time() - start
+    print(f"{name} took {elapsed:.2f}s")
+
+with timer("Data processing"):
+    process_large_dataset()
+# Automatic timing output
+```
+
+**Class approach:**
+```python
+class DatabaseTransaction:
+    def __enter__(self):
+        self.conn = get_connection()
+        self.conn.begin()
+        return self.conn
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is None:
+            self.conn.commit()
+        else:
+            self.conn.rollback()
+        self.conn.close()
+
+with DatabaseTransaction() as conn:
+    conn.execute("INSERT ...")
+    conn.execute("UPDATE ...")
+# Auto-commits on success, rolls back on error
+```
+
+---
+
+## 🎨 Decorators (Function Wrappers)
+
+**JS**
+```js
+// Higher-order function pattern
+function logCalls(func) {
+  return function(...args) {
+    console.log(`Calling ${func.name} with`, args);
+    return func(...args);
+  };
+}
+
+const add = logCalls((a, b) => a + b);
+add(2, 3);  // Logs: Calling add with [2, 3]
+```
+
+**Python**
+```python
+# Decorator syntax
+def log_calls(func):
+    def wrapper(*args, **kwargs):
+        print(f"Calling {func.__name__} with {args} {kwargs}")
+        return func(*args, **kwargs)
+    return wrapper
+
+@log_calls
+def add(a, b):
+    return a + b
+
+add(2, 3)  # Logs: Calling add with (2, 3) {}
+```
+
+### Common Built-in Decorators
+
+```python
+from functools import wraps, lru_cache
+import time
+
+# Preserve function metadata
+def timer(func):
+    @wraps(func)  # Preserves func.__name__, __doc__, etc.
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        result = func(*args, **kwargs)
+        print(f"{func.__name__} took {time.time() - start:.2f}s")
+        return result
+    return wrapper
+
+# Memoization/caching
+@lru_cache(maxsize=128)
+def fibonacci(n):
+    if n < 2:
+        return n
+    return fibonacci(n-1) + fibonacci(n-2)
+
+# Property decorator
+class Circle:
+    def __init__(self, radius):
+        self._radius = radius
+
+    @property
+    def area(self):
+        return 3.14159 * self._radius ** 2
+
+    @property
+    def diameter(self):
+        return self._radius * 2
+
+    @diameter.setter
+    def diameter(self, value):
+        self._radius = value / 2
+
+circle = Circle(5)
+print(circle.area)       # Computed property
+circle.diameter = 20     # Setter
+```
+
+### Decorators with Arguments
+
+```python
+def repeat(times):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            for _ in range(times):
+                result = func(*args, **kwargs)
+            return result
+        return wrapper
+    return decorator
+
+@repeat(3)
+def greet(name):
+    print(f"Hello, {name}!")
+
+greet("Alice")
+# Hello, Alice!
+# Hello, Alice!
+# Hello, Alice!
+
+# Real-world: retry decorator
+def retry(max_attempts=3, delay=1):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_attempts):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    if attempt == max_attempts - 1:
+                        raise
+                    time.sleep(delay)
+        return wrapper
+    return decorator
+
+@retry(max_attempts=3, delay=2)
+def fetch_data():
+    # Retries up to 3 times with 2s delay
+    return requests.get(url)
+```
+
+---
+
+## 🔄 Generators (Lazy Evaluation)
+
+**JS**
+```js
+// Generator function
+function* numberGenerator() {
+  yield 1;
+  yield 2;
+  yield 3;
+}
+
+const gen = numberGenerator();
+console.log(gen.next().value);  // 1
+console.log(gen.next().value);  // 2
+
+// Async generators
+async function* fetchPages() {
+  for (let i = 1; i <= 5; i++) {
+    const data = await fetch(`/api/page/${i}`);
+    yield data;
+  }
+}
+```
+
+**Python**
+```python
+# Generator function with yield
+def number_generator():
+    yield 1
+    yield 2
+    yield 3
+
+gen = number_generator()
+print(next(gen))  # 1
+print(next(gen))  # 2
+
+# Or iterate
+for num in number_generator():
+    print(num)
+
+# Memory-efficient file processing
+def read_large_file(path):
+    with open(path) as f:
+        for line in f:
+            yield line.strip()  # Only loads one line at a time
+
+for line in read_large_file('huge.txt'):
+    process(line)  # Memory stays constant
+
+# Generator expressions (like list comp but lazy)
+squares = (x**2 for x in range(1000000))  # Doesn't compute yet
+print(next(squares))  # 0
+print(next(squares))  # 1
+
+# vs list comprehension (computes immediately)
+squares_list = [x**2 for x in range(1000000)]  # Allocates all memory now
+```
+
+### Generator Use Cases
+
+```python
+# Infinite sequences
+def fibonacci():
+    a, b = 0, 1
+    while True:
+        yield a
+        a, b = b, a + b
+
+fib = fibonacci()
+print([next(fib) for _ in range(10)])  # [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
+
+# ETL pipelines - chain generators
+def extract(filename):
+    with open(filename) as f:
+        for line in f:
+            yield line.strip()
+
+def transform(lines):
+    for line in lines:
+        yield line.upper()
+
+def load(lines):
+    for line in lines:
+        db.insert(line)
+
+# Compose pipeline
+load(transform(extract('data.txt')))  # Memory efficient!
+```
+
+---
+
+## 🔍 Advanced Iteration Tools
+
+### itertools - Power Tools
+
+```python
+from itertools import (
+    chain, groupby, islice, cycle,
+    combinations, permutations
+)
+
+# Chain multiple iterables
+combined = chain([1, 2], [3, 4], [5, 6])
+list(combined)  # [1, 2, 3, 4, 5, 6]
+
+# Group by key
+data = [('A', 1), ('A', 2), ('B', 3), ('B', 4)]
+for key, group in groupby(data, lambda x: x[0]):
+    print(key, list(group))
+# A [('A', 1), ('A', 2)]
+# B [('B', 3), ('B', 4)]
+
+# Slice iterator (don't load all into memory)
+for item in islice(huge_generator(), 10):
+    print(item)  # First 10 items only
+
+# Cycle through items infinitely
+colors = cycle(['red', 'green', 'blue'])
+print([next(colors) for _ in range(5)])
+# ['red', 'green', 'blue', 'red', 'green']
+
+# Combinations and permutations
+list(combinations([1, 2, 3], 2))  # [(1, 2), (1, 3), (2, 3)]
+list(permutations([1, 2, 3], 2))  # [(1, 2), (1, 3), (2, 1), (2, 3), (3, 1), (3, 2)]
+```
+
+### functools - Functional Utilities
+
+```python
+from functools import partial, reduce
+
+# Partial application (pre-fill arguments)
+def greet(greeting, name):
+    return f"{greeting}, {name}!"
+
+say_hello = partial(greet, "Hello")
+say_goodbye = partial(greet, "Goodbye")
+
+say_hello("Alice")    # "Hello, Alice!"
+say_goodbye("Alice")  # "Goodbye, Alice!"
+
+# Reduce (you already have this, but here's more)
+from operator import add, mul
+reduce(add, [1, 2, 3, 4])  # 10
+reduce(mul, [1, 2, 3, 4])  # 24
+```
+
+---
+
+## 🎯 Pattern Matching (Python 3.10+)
+
+**JS**
+```js
+switch (status) {
+  case 'pending':
+    process();
+    break;
+  case 'done':
+    archive();
+    break;
+  default:
+    handleUnknown();
+}
+```
+
+**Python**
+```python
+# Match/case with structural pattern matching
+match status:
+    case 'pending':
+        process()
+    case 'done':
+        archive()
+    case _:
+        handle_unknown()
+
+# Structural patterns
+match point:
+    case (0, 0):
+        print("Origin")
+    case (x, 0):
+        print(f"On X-axis at {x}")
+    case (0, y):
+        print(f"On Y-axis at {y}")
+    case (x, y):
+        print(f"Point at {x}, {y}")
+
+# Match objects
+match response:
+    case {"status": 200, "data": data}:
+        process(data)
+    case {"status": 404}:
+        not_found()
+    case {"status": code, "error": msg}:
+        handle_error(code, msg)
+
+# Match with guards
+match user:
+    case {"role": "admin", "active": True}:
+        grant_access()
+    case {"role": role} if role in ["user", "guest"]:
+        limited_access()
+    case _:
+        deny()
+```
+
+---
+
+## 🔧 Advanced String Formatting
+
+You have basic f-strings, but here's more:
+
+```python
+name = "Alice"
+value = 1234.5678
+count = 42
+
+# Debug formatting (Python 3.8+)
+f"{name=}"              # "name='Alice'"
+f"{value=:.2f}"         # "value=1234.57"
+
+# Number formatting
+f"{value:.2f}"          # "1234.57" - 2 decimal places
+f"{value:,.2f}"         # "1,234.57" - with thousands separator
+f"{value:>10}"          # "  1234.5678" - right-align in 10 chars
+f"{value:<10}"          # "1234.5678  " - left-align
+f"{value:^10}"          # " 1234.5678 " - center
+
+# Percentage
+rate = 0.156
+f"{rate:.1%}"           # "15.6%"
+
+# Binary/hex
+f"{count:b}"            # "101010" - binary
+f"{count:x}"            # "2a" - hex
+f"{count:08b}"          # "00101010" - padded binary
+
+# Date formatting
+from datetime import datetime
+now = datetime.now()
+f"{now:%Y-%m-%d %H:%M:%S}"  # "2025-12-18 14:30:45"
+```
+
+---
+
+## 💡 Walrus Operator (`:=`) - Assignment Expressions
+
+**Python 3.8+** - assign and use in same expression
+
+```python
+# Before: repetitive
+if len(data) > 10:
+    print(f"Large dataset: {len(data)}")
+
+# After: assign while checking
+if (n := len(data)) > 10:
+    print(f"Large dataset: {n}")
+
+# In while loops
+while (line := file.readline()) != "":
+    process(line)
+
+# In comprehensions
+[y for x in data if (y := transform(x)) is not None]
+
+# Avoid redundant function calls
+if (match := regex.search(text)):
+    print(match.group(1))
 ```
 
 ---
