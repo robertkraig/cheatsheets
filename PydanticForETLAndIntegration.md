@@ -17,11 +17,18 @@ class Customer(BaseModel):
     join_date: Optional[date] = None
     active: bool = True
 
-# Example usage
+# Example usage - with validation
 c = Customer(id=1, name="Alice", email="alice@example.com")
 print(c.dict())
+
+# ⚡ Skip validation for trusted data (faster for large datasets)
+# Pydantic v2:
+c_fast = Customer.model_construct(id=1, name="Alice", email="alice@example.com")
+
+# Pydantic v1:
+# c_fast = Customer.construct(id=1, name="Alice", email="alice@example.com")
 ```
-🧠 *ETL Use:* Validate incoming records before writing to staging.
+🧠 *ETL Use:* Validate incoming records before writing to staging. Use `model_construct()` for pre-validated data to skip validation overhead.
 
 ---
 
@@ -152,6 +159,13 @@ for _, row in df.iterrows():
 
 clean_df = pd.DataFrame(valid)
 print(clean_df)
+
+# ⚡ For already-validated data, skip validation (massive speedup):
+# Pydantic v2:
+pre_validated = [Record.model_construct(**row) for row in trusted_data]
+
+# Pydantic v1:
+# pre_validated = [Record.construct(**row) for row in trusted_data]
 ```
 
 ---
