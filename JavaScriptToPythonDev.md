@@ -1770,14 +1770,88 @@ if (match := regex.search(text)):
 
 ## 🧩 Functional TL;DR
 
-| JS | Python |
-|----|---------|
-| `map(fn, arr)` | `[fn(x) for x in arr]` |
-| `filter(fn, arr)` | `[x for x in arr if fn(x)]` |
-| `reduce(fn, arr, init)` | `reduce(fn, arr, init)` |
-| `.some(fn)` | `any(fn(x) for x in arr)` |
-| `.every(fn)` | `all(fn(x) for x in arr)` |
-| `.forEach(fn)` | `for x in arr: fn(x)` |
+| JS                      | Python                                     |
+|-------------------------|--------------------------------------------|
+| `map(fn, arr)`          | `[fn(x) for x in arr]`                     |
+| `filter(fn, arr)`       | `[x for x in arr if fn(x)]`                |
+| `reduce(fn, arr, init)` | `reduce(fn, arr, init)`                    |
+| `.some(fn)`             | `any(fn(x) for x in arr)`                  |
+| `.every(fn)`            | `all(fn(x) for x in arr)`                  |
+| `.forEach(fn)`          | `for x in arr: fn(x)`                      |
+| `arr.flat()`            | `[item for row in matrix for item in row]` |
+| `arr.flat(depth)`       | Use `itertools.chain.from_iterable()`      |
+
+### Flattening Lists/Arrays
+
+**JS**
+```js
+// Flatten one level
+const nested = [[1, 2], [3, 4], [5]];
+const flat = nested.flat();  // [1, 2, 3, 4, 5]
+
+// Flatten multiple levels
+const deep = [1, [2, [3, [4]]]];
+const flat2 = deep.flat(2);      // [1, 2, 3, [4]]
+const flatAll = deep.flat(Infinity);  // [1, 2, 3, 4]
+
+// Flatten with flatMap
+const data = ["hello world", "foo bar"];
+const words = data.flatMap(s => s.split(' '));
+// ["hello", "world", "foo", "bar"]
+```
+
+**Python**
+```python
+from functools import reduce
+from itertools import chain
+
+# Flatten one level - list comprehension
+nested = [[1, 2], [3, 4], [5]]
+flat = [item for row in nested for item in row]
+# [1, 2, 3, 4, 5]
+
+# Flatten one level - reduce
+flat = reduce(lambda acc, row: acc + row, nested, [])
+# [1, 2, 3, 4, 5]
+
+# Flatten one level - itertools.chain (most efficient)
+flat = list(chain.from_iterable(nested))
+# [1, 2, 3, 4, 5]
+
+# Flatten one level - unpacking (Python 3.5+)
+flat = [*chain(*nested)]
+# [1, 2, 3, 4, 5]
+
+# Flatten deep/nested structures (recursive)
+def flatten_deep(lst):
+    """Recursively flatten arbitrarily nested lists"""
+    result = []
+    for item in lst:
+        if isinstance(item, list):
+            result.extend(flatten_deep(item))
+        else:
+            result.append(item)
+    return result
+
+deep = [1, [2, [3, [4]]]]
+flat_all = flatten_deep(deep)
+# [1, 2, 3, 4]
+
+# FlatMap equivalent - comprehension with nested loop
+data = ["hello world", "foo bar"]
+words = [word for sentence in data for word in sentence.split()]
+# ["hello", "world", "foo", "bar"]
+
+# FlatMap with chain
+words = list(chain.from_iterable(s.split() for s in data))
+# ["hello", "world", "foo", "bar"]
+```
+
+**Performance tips:**
+- **List comprehension**: Most Pythonic, readable for simple cases
+- **`chain.from_iterable()`**: Most efficient for single-level flattening
+- **`reduce()`**: Works but slower, less idiomatic
+- **Recursive function**: Only when dealing with unknown nesting depth
 
 ---
 
